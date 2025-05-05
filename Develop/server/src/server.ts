@@ -1,17 +1,23 @@
 // server/src/server.ts
 
 import 'dotenv/config';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 import express from 'express';
-import path from 'path';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 
 import db from './config/connection.js';
-import { typeDefs } from './services/typeDef.js';     // ensure this matches your filename
+import { typeDefs } from './services/typeDef.js';      // ← ensure “typeDefs.js”
 import { resolvers } from './services/resolvers.js';
 import { authMiddleware } from './services/auth.js';
+
+// ── ESM __dirname Polyfill ───────────────────────────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+// ──────────────────────────────────────────────────────────────────────────────
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,9 +40,9 @@ async function startServer() {
 
   // 3️⃣ Static assets in production
   if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.resolve(__dirname, '../client/build')));
+    app.use(express.static(resolve(__dirname, '../Client/dist')));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, '../client/build/index.html'));
+      res.sendFile(resolve(__dirname, '../Client/dist/index.html'));
     });
   }
 
@@ -50,7 +56,6 @@ async function startServer() {
   db.once('open', () => console.log('✅ MongoDB connected'));
 }
 
-// Launch everything
 startServer().catch((err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
