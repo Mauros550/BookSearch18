@@ -19,3 +19,5 @@ Welcome to **BookSearch18**, a MERN‑stack application refactored from REST to 
 
 ---
 
+Static site - https://booksearch18-1.onrender.com 
+Web Service - https://booksearch18.onrender.com 
