@@ -11,7 +11,7 @@ import {
 import { setContext } from '@apollo/client/link/context';
 
 const httpLink = createHttpLink({
-  uri: 'http://localhost:3001/graphql',  // ← point directly to your backend
+  uri: import.meta.env.VITE_GRAPHQL_ENDPOINT || 'http://localhost:3001/graphql',  // ← point directly to your backend
 });
 
 const authLink = setContext((_, { headers }) => {
