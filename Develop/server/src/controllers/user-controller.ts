@@ -1,13 +1,14 @@
+// server/src/controllers/user-controller.ts
+
 import type { Request, Response } from 'express';
-// import user model
 import User from '../models/User.js';
-// import sign token function from auth
 import { signToken } from '../services/auth.js';
 
 // get a single user by either their id or their username
 export const getSingleUser = async (req: Request, res: Response) => {
+  const userId = req.user ? (req.user as any).data._id : req.params.id;
   const foundUser = await User.findOne({
-    $or: [{ _id: req.user ? req.user._id : req.params.id }, { username: req.params.username }],
+    $or: [{ _id: userId }, { username: req.params.username }],
   });
 
   if (!foundUser) {
@@ -17,46 +18,59 @@ export const getSingleUser = async (req: Request, res: Response) => {
   return res.json(foundUser);
 };
 
-// create a user, sign a token, and send it back (to client/src/components/SignUpForm.js)
+// create a user, sign a token, and send it back
 export const createUser = async (req: Request, res: Response) => {
   const user = await User.create(req.body);
 
   if (!user) {
     return res.status(400).json({ message: 'Something is wrong!' });
   }
-  const token = signToken(user.username, user.password, user._id);
+
+  // Coerce unknown _id into a string
+  const token = signToken({
+    _id: String((user._id as unknown)),
+    username: user.username,
+    email: user.email,
+  });
+
   return res.json({ token, user });
 };
 
-// login a user, sign a token, and send it back (to client/src/components/LoginForm.js)
-// {body} is destructured req.body
+// login a user, sign a token, and send it back
 export const login = async (req: Request, res: Response) => {
-  const user = await User.findOne({ $or: [{ username: req.body.username }, { email: req.body.email }] });
+  const user = await User.findOne({
+    $or: [{ username: req.body.username }, { email: req.body.email }],
+  });
   if (!user) {
     return res.status(400).json({ message: "Can't find this user" });
   }
 
   const correctPw = await user.isCorrectPassword(req.body.password);
-
   if (!correctPw) {
     return res.status(400).json({ message: 'Wrong password!' });
   }
-  const token = signToken(user.username, user.password, user._id);
+
+  // Coerce unknown _id into a string
+  const token = signToken({
+    _id: String((user._id as unknown)),
+    username: user.username,
+    email: user.email,
+  });
+
   return res.json({ token, user });
 };
 
-// save a book to a user's `savedBooks` field by adding it to the set (to prevent duplicates)
-// user comes from `req.user` created in the auth middleware function
+// save a book to a user's `savedBooks` field
 export const saveBook = async (req: Request, res: Response) => {
   try {
     const updatedUser = await User.findOneAndUpdate(
-      { _id: req.user._id },
+      { _id: (req.user as any).data._id },
       { $addToSet: { savedBooks: req.body } },
       { new: true, runValidators: true }
     );
     return res.json(updatedUser);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     return res.status(400).json(err);
   }
 };
@@ -64,7 +78,7 @@ export const saveBook = async (req: Request, res: Response) => {
 // remove a book from `savedBooks`
 export const deleteBook = async (req: Request, res: Response) => {
   const updatedUser = await User.findOneAndUpdate(
-    { _id: req.user._id },
+    { _id: (req.user as any).data._id },
     { $pull: { savedBooks: { bookId: req.params.bookId } } },
     { new: true }
   );

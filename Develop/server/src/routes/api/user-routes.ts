@@ -1,5 +1,6 @@
-import express from 'express';
-const router = express.Router();
+// server/src/routes/api/user-routes.ts
+
+import { Router, Request, Response, NextFunction } from 'express';
 import {
   createUser,
   getSingleUser,
@@ -7,17 +8,37 @@ import {
   deleteBook,
   login,
 } from '../../controllers/user-controller.js';
+import { authMiddleware } from '../../services/auth.js';
 
-// import middleware
-import { authenticateToken } from '../../services/auth.js';
+const router = Router();
 
-// put authMiddleware anywhere we need to send a token for verification of user
-router.route('/').post(createUser).put(authenticateToken, saveBook);
+// Public routes
+router.post('/', createUser);
+router.post('/login', login);
 
-router.route('/login').post(login);
+/**
+ * Guard middleware that attaches req.user or sends 401.
+ * Always returns void so TS is happy.
+ */
+const ensureAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { user } = await authMiddleware({ req });
+  if (!user) {
+    // send 401 and exit this function
+    res.status(401).json({ message: 'Not authenticated' });
+    return;
+  }
+  // attach the decoded user payload and continue
+  (req as any).user = user.data;
+  next();
+};
 
-router.route('/me').get(authenticateToken, getSingleUser);
-
-router.route('/books/:bookId').delete(authenticateToken, deleteBook);
+// Protected routes
+router.get('/me', ensureAuth, getSingleUser);
+router.put('/books', ensureAuth, saveBook);
+router.delete('/books/:bookId', ensureAuth, deleteBook);
 
 export default router;
